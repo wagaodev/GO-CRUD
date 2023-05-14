@@ -1,57 +1,81 @@
 package controllers
 
 import (
-	entities "api/services/entities"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-type tweetController struct {
-	tweets []entities.Tweet  
+type TweetController struct {
+	Tweets []Tweet
 }
 
-func NewTweetController() *tweetController {
-	return &tweetController{}
+type Tweet struct {
+	ID   string `json:"id"`
+	Text string `json:"text"`
 }
 
-func (t *tweetController) FindAll(ctx *gin.Context){
-	if t.tweets == nil {
-		ctx.JSON(http.StatusNotFound, gin.H {
+func NewTweetController() *TweetController {
+	return &TweetController{}
+}
+
+func (tc *TweetController) FindAll(ctx *gin.Context) {
+	if tc.Tweets == nil {
+		ctx.JSON(http.StatusNotFound, gin.H{
 			"Atenção": "O usuário ainda não escreveu nenhum Tweet, seja o primeiro",
 		})
 		return
-	}	
-	ctx.JSON(http.StatusOK, t.tweets)
+	}
+	ctx.JSON(http.StatusOK, tc.Tweets)
 }
 
-func (t *tweetController) Create(ctx *gin.Context){
-	tweet := entities.NewTweet()
+func (tc *TweetController) Create(ctx *gin.Context) {
+	tweet := Tweet{}
 
 	if err := ctx.BindJSON(&tweet); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"Error": "Falha ao fazer o bind do JSON",
+		})
 		return
 	}
 
-	t.tweets = append(t.tweets, *tweet)
+	tc.Tweets = append(tc.Tweets, tweet)
 
-	ctx.JSON(http.StatusOK, t.tweets)
+	ctx.JSON(http.StatusOK, tc.Tweets)
 }
 
-func (t *tweetController) Delete(ctx *gin.Context){
+func (tc *TweetController) Delete(ctx *gin.Context) {
 	id := ctx.Param("id")
 
-	for index, tweet := range t.tweets {
+	for index, tweet := range tc.Tweets {
 		if tweet.ID == id {
-			t.tweets = append(t.tweets[:index], t.tweets[index+1:]...)
-			ctx.JSON(http.StatusOK, gin.H {
+			tc.Tweets = append(tc.Tweets[:index], tc.Tweets[index+1:]...)
+			ctx.JSON(http.StatusOK, gin.H{
 				"Success": fmt.Sprintf("Tweet with ID %s successfully deleted", id),
 			})
 			return
 		}
 	}
 
-	ctx.JSON(http.StatusNotFound, gin.H {
+	ctx.JSON(http.StatusNotFound, gin.H{
 		"Error": "I'M SORRY !! Tweet not found",
 	})
+}
+
+func TweetHandler(c *gin.Context) {
+	tweetController := NewTweetController()
+
+	switch c.Request.Method {
+	case "GET":
+		tweetController.FindAll(c)
+	case "POST":
+		tweetController.Create(c)
+	case "DELETE":
+		tweetController.Delete(c)
+	default:
+		c.JSON(http.StatusMethodNotAllowed, gin.H{
+			"Error": "Método não permitido",
+		})
+	}
 }
